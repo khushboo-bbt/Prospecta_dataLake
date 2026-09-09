@@ -1,0 +1,6 @@
+# All variables have defaults matching what was confirmed against the actual
+# account (see variables.tf). Copy this file only if you need to override
+# something — e.g. a different CIDR block.
+
+# aws_region  = "ap-southeast-1"
+# vpc_cidr    = "10.50.0.0/16"

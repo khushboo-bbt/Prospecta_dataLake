@@ -1,0 +1,39 @@
+# Copy to terraform.tfvars (or a *.auto.tfvars) and fill in with real sandbox
+# values. Do not commit the filled-in file — it will contain a password.
+
+aws_region = "ap-southeast-1"
+
+# --- Sandbox foundation: outputs from terraform/datalake-poc-foundation ---
+# Apply that module first, then copy its outputs here.
+vpc_id                     = "vpc-REPLACE_ME"        # foundation output: vpc_id
+private_subnet_ids         = ["subnet-REPLACE_ME_A"] # foundation output: private_subnet_ids
+route_table_ids            = ["rtb-REPLACE_ME_A"]    # foundation output: private_route_table_id
+create_s3_gateway_endpoint = false                   # foundation module already creates this endpoint
+
+# --- Existing source RDS for PostgreSQL instance (postgreslt, ap-southeast-1) ---
+source_db_instance_identifier = "postgreslt"
+source_db_engine_version      = "16.13"
+source_db_endpoint            = "postgreslt.cngueiamkfk5.ap-southeast-1.rds.amazonaws.com"
+source_db_port                = 5432
+source_db_name                = "mdo-core-crud" # postgreslt hosts ~28 separate databases (microservices pattern); this is the client-confirmed in-scope one
+source_db_username            = "dms_replication_user"
+# source_db_password should be supplied via TF_VAR_source_db_password or an
+# uncommitted *.auto.tfvars — not hard-coded here.
+
+# --- Table selection (narrow to the agreed POC subset before the real run) ---
+# table_mappings = {
+#   rules = [
+#     {
+#       rule-type = "selection"
+#       rule-id   = "1"
+#       rule-name = "1"
+#       object-locator = {
+#         schema-name = "public"
+#         table-name  = "%"
+#       }
+#       rule-action = "include"
+#     }
+#   ]
+# }
+
+start_replication = false
