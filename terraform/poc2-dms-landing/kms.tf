@@ -40,6 +40,25 @@ resource "aws_kms_key" "poc2" {
         }
       },
       {
+        # Lake Formation reads data on a governed principal's behalf via its
+        # own service-linked role's temporary, vended credentials — not the
+        # principal's own IAM identity. That role needs its own KMS grant
+        # here, same pattern as AllowDmsServerlessServiceLinkedRole above
+        # (confirmed via a real query failure: "AWSServiceRoleForLakeFormationDataAccess
+        # ... not authorized to perform: kms:Decrypt").
+        Sid    = "AllowLakeFormationServiceLinkedRole"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/aws-service-role/lakeformation.amazonaws.com/AWSServiceRoleForLakeFormationDataAccess"
+        }
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+      },
+      {
         Sid    = "AllowSecretsManagerServiceUse"
         Effect = "Allow"
         Principal = {
@@ -48,6 +67,24 @@ resource "aws_kms_key" "poc2" {
         Action = [
           "kms:Decrypt",
           "kms:GenerateDataKey",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+        }
+      },
+      {
+        Sid    = "AllowSnsServiceUse"
+        Effect = "Allow"
+        Principal = {
+          Service = "sns.amazonaws.com"
+        }
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey*",
           "kms:DescribeKey"
         ]
         Resource = "*"

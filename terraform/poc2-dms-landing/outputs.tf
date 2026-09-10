@@ -38,3 +38,50 @@ output "full_load_only_replication_config_arn" {
 output "dms_cloudwatch_log_group" {
   value = aws_cloudwatch_log_group.dms.name
 }
+
+output "glue_database_name" {
+  value = aws_glue_catalog_database.poc2.name
+}
+
+output "glue_crawler_name" {
+  value = aws_glue_crawler.poc2.name
+}
+
+output "athena_workgroup_name" {
+  value = aws_athena_workgroup.poc2.name
+}
+
+output "iceberg_database_name" {
+  value = aws_glue_catalog_database.curated.name
+}
+
+output "iceberg_merge_job_name" {
+  value = aws_glue_job.iceberg_merge.name
+}
+
+output "iceberg_maintenance_job_name" {
+  value = aws_glue_job.iceberg_maintenance.name
+}
+
+output "iceberg_merge_schedule_rule" {
+  value = aws_scheduler_schedule.iceberg_merge.name
+}
+
+output "iceberg_maintenance_schedule_rule" {
+  value = aws_scheduler_schedule.iceberg_maintenance.name
+}
+
+output "replica_health_sns_topic_arn" {
+  value = aws_sns_topic.replica_health.arn
+}
+
+output "curated_reader_access_key_id" {
+  description = "Access key ID for the restricted curated-data-reader IAM user (for Power BI's Athena connection)."
+  value       = aws_iam_access_key.curated_reader.id
+}
+
+output "curated_reader_secret_access_key" {
+  description = "Secret access key — retrieve with: terraform output -raw curated_reader_secret_access_key"
+  value       = aws_iam_access_key.curated_reader.secret
+  sensitive   = true
+}

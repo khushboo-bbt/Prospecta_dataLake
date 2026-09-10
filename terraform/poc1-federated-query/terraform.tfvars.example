@@ -1,0 +1,24 @@
+# Copy to terraform.tfvars (or a *.auto.tfvars) and fill in with real sandbox
+# values. Do not commit the filled-in file — it will contain two passwords.
+
+aws_region = "ap-southeast-1"
+
+# --- Sandbox foundation: outputs from terraform/datalake-poc-foundation ---
+# Apply that module first, then copy its outputs here.
+vpc_id             = "vpc-REPLACE_ME"        # foundation output: vpc_id
+private_subnet_ids = ["subnet-REPLACE_ME_A"] # foundation output: private_subnet_ids
+vpc_cidr           = "10.50.0.0/16"          # foundation output: vpc_cidr
+
+# --- Existing source RDS for PostgreSQL instance (postgreslt, ap-southeast-1) ---
+source_db_instance_identifier = "postgreslt"
+source_db_name                = "mdo-core-crud" # client-confirmed in-scope database on postgreslt (~28 databases exist on the instance)
+
+# --- Two read-only DB logins (create these on the replica per sql/01_read_only_roles.sql) ---
+mv_refresh_db_username = "redshift_mv_refresh"
+adhoc_db_username      = "redshift_adhoc"
+# mv_refresh_db_password / adhoc_db_password must be supplied via
+# TF_VAR_mv_refresh_db_password / TF_VAR_adhoc_db_password — never put them in
+# this file.
+
+# --- PgBouncer image tag — bump this after pushing a new build (see docker/pgbouncer/README.md) ---
+pgbouncer_image_tag = "latest"
