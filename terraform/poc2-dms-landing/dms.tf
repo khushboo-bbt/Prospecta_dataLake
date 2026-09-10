@@ -12,6 +12,17 @@ resource "aws_dms_endpoint" "source" {
   secrets_manager_access_role_arn = aws_iam_role.dms_secrets_access.arn
   secrets_manager_arn             = aws_secretsmanager_secret.source_db.arn
 
+  postgres_settings {
+    # Default DDL-capture behavior needs the pglogical extension (preloaded
+    # via shared_preload_libraries, which we haven't set up, and would need
+    # yet another reboot). This POC only needs data changes, not schema-
+    # change tracking, so disable DDL capture entirely and avoid the
+    # pglogical dependency — confirmed root cause of "pglogical is not in
+    # shared_preload_libraries" / "relation pglogical.replication_set does
+    # not exist" fatal errors in the DMS Serverless logs.
+    capture_ddls = false
+  }
+
   tags = var.tags
 
   depends_on = [aws_iam_role_policy.dms_secrets_access]

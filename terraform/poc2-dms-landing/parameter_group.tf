@@ -32,5 +32,32 @@ resource "aws_db_parameter_group" "logical_replication" {
     apply_method = "immediate"
   }
 
+  dynamic "parameter" {
+    for_each = var.preserve_idle_in_transaction_session_timeout != null ? [var.preserve_idle_in_transaction_session_timeout] : []
+    content {
+      name         = "idle_in_transaction_session_timeout"
+      value        = parameter.value
+      apply_method = "immediate"
+    }
+  }
+
+  dynamic "parameter" {
+    for_each = var.preserve_log_min_duration_statement != null ? [var.preserve_log_min_duration_statement] : []
+    content {
+      name         = "log_min_duration_statement"
+      value        = parameter.value
+      apply_method = "immediate"
+    }
+  }
+
+  dynamic "parameter" {
+    for_each = var.preserve_pg_stat_statements_track_planning != null ? [var.preserve_pg_stat_statements_track_planning] : []
+    content {
+      name         = "pg_stat_statements.track_planning"
+      value        = parameter.value
+      apply_method = "immediate"
+    }
+  }
+
   tags = var.tags
 }
