@@ -1,7 +1,7 @@
 data "aws_caller_identity" "current" {}
 
 resource "aws_kms_key" "poc1" {
-  description             = "${var.name_prefix} customer-managed key for the analytics replica storage, Secrets Manager secrets and the PgBouncer ECR repo."
+  description             = "${var.name_prefix} customer-managed key for Secrets Manager secrets, the Redshift Serverless namespace, and the PgBouncer ECR repo. Not used by the analytics replica - a same-region read replica always inherits the source instance's own encryption, see replica.tf."
   deletion_window_in_days = 7
   enable_key_rotation     = true
 
@@ -25,25 +25,6 @@ resource "aws_kms_key" "poc1" {
           "kms:Decrypt",
           "kms:GenerateDataKey",
           "kms:DescribeKey"
-        ]
-        Resource = "*"
-        Condition = {
-          StringEquals = {
-            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
-          }
-        }
-      },
-      {
-        Sid    = "AllowRdsServiceUse"
-        Effect = "Allow"
-        Principal = {
-          Service = "rds.amazonaws.com"
-        }
-        Action = [
-          "kms:Decrypt",
-          "kms:GenerateDataKey",
-          "kms:DescribeKey",
-          "kms:CreateGrant"
         ]
         Resource = "*"
         Condition = {

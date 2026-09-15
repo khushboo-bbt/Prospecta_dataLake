@@ -39,6 +39,11 @@ variable "vpc_cidr" {
   type        = string
 }
 
+variable "bastion_security_group_id" {
+  description = "Security group ID of the foundation module's temporary bastion (datalake-poc-foundation output: bastion_security_group_id). Allows one-off admin access (e.g. creating DB roles) to the analytics replica via SSM port forwarding through the bastion."
+  type        = string
+}
+
 variable "route_table_ids" {
   description = "Route table IDs associated with the private subnets. Unused unless a future gateway endpoint is added here; kept for parity with poc2-dms-landing's foundation-wiring variables."
   type        = list(string)
@@ -74,12 +79,6 @@ variable "replica_instance_class" {
   description = "Instance class for the dedicated analytics read replica."
   type        = string
   default     = "db.m5.2xlarge"
-}
-
-variable "replica_allocated_storage" {
-  description = "Allocated storage (GB) for the analytics read replica."
-  type        = number
-  default     = 500
 }
 
 variable "replica_storage_type" {

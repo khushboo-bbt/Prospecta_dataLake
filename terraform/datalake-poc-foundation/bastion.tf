@@ -69,6 +69,18 @@ resource "aws_security_group" "bastion" {
     cidr_blocks = [var.rds_vpc_cidr]
   }
 
+  # Separate from the rule above: POC-provisioned resources that also speak
+  # Postgres (e.g. poc1-federated-query's analytics read replica) live in
+  # this VPC itself, not the peered RDS VPC - needed for one-off admin access
+  # (e.g. creating DB roles) via SSM port forwarding through this bastion.
+  egress {
+    description = "Postgres to POC resources within this VPC"
+    from_port   = var.rds_port
+    to_port     = var.rds_port
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
   tags = merge(var.tags, { Name = "${var.name_prefix}-bastion" })
 }
 
@@ -82,6 +94,19 @@ resource "aws_instance" "bastion" {
 
   root_block_device {
     encrypted = true
+  }
+
+  # data.aws_ami.al2023 uses most_recent = true, which re-resolves to
+  # whatever AL2023 AMI AWS has published as of *this* plan - completely
+  # unrelated to any change actually being made here, this can force a
+  # surprise replacement of the bastion on any future apply as new AMIs get
+  # published upstream. The bastion is intentionally stateless/disposable,
+  # so a replacement wouldn't itself be harmful, but it shouldn't happen as
+  # an unintended side effect of an unrelated change - ignore drift here and
+  # bump the AMI deliberately (remove this ignore temporarily) if it's ever
+  # actually time to move the bastion to a newer AMI.
+  lifecycle {
+    ignore_changes = [ami]
   }
 
   tags = merge(var.tags, { Name = "${var.name_prefix}-bastion" })

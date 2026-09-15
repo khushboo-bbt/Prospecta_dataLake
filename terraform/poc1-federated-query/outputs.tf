@@ -8,8 +8,13 @@ output "analytics_replica_arn" {
 }
 
 output "pgbouncer_nlb_dns_name" {
-  description = "Internal NLB DNS name fronting PgBouncer. Point the Redshift external schema (sql/02_external_schema.sql) at this host, port 6432."
+  description = "Internal NLB DNS name fronting PgBouncer. Not what the Redshift external schema should use — see pgbouncer_private_dns_name below (Redshift's federated-query resolver can't resolve the raw ELB-assigned hostname, confirmed via testing: curlCode 6, Couldn't resolve host name)."
   value       = aws_lb.pgbouncer.dns_name
+}
+
+output "pgbouncer_private_dns_name" {
+  description = "Private-hosted-zone hostname for PgBouncer. Point the Redshift external schema (sql/02_external_schema.sql) at THIS host, port 6432 — not pgbouncer_nlb_dns_name."
+  value       = aws_route53_record.pgbouncer.name
 }
 
 output "pgbouncer_ecr_repository_url" {

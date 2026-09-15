@@ -54,11 +54,31 @@ resource "aws_iam_role_policy" "pgbouncer_task_execution" {
 
 # The task role (as opposed to the execution role above) is what the
 # containerised application itself would assume — PgBouncer needs none of its
-# own AWS API access, so this is left minimal/empty on purpose.
+# own AWS API access beyond what ECS Exec requires (see enable_execute_command
+# in pgbouncer.tf), so this stays otherwise minimal on purpose.
 resource "aws_iam_role" "pgbouncer_task" {
   name               = "${var.name_prefix}-pgbouncer-task"
   assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role.json
   tags               = var.tags
+}
+
+data "aws_iam_policy_document" "pgbouncer_task_ecs_exec" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "ssmmessages:CreateControlChannel",
+      "ssmmessages:CreateDataChannel",
+      "ssmmessages:OpenControlChannel",
+      "ssmmessages:OpenDataChannel",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "pgbouncer_task_ecs_exec" {
+  name   = "${var.name_prefix}-pgbouncer-task-ecs-exec"
+  role   = aws_iam_role.pgbouncer_task.id
+  policy = data.aws_iam_policy_document.pgbouncer_task_ecs_exec.json
 }
 
 # ---------------------------------------------------------------------------

@@ -38,9 +38,22 @@ read-only logins' username/password pairs), computing the Postgres-compatible md
 hash for each user so neither plaintext password is ever written to disk. Both logins share
 one pool against the replica's target database in `transaction` pooling mode.
 
-## Before you build
+## TLS
 
-Verify the Debian `pgbouncer` package in the base image doesn't refuse to run as root in
-the Fargate task (some versions require dropping to an unprivileged user via the `user =`
-ini directive) — check the container logs after the first task start and add a `user`
-directive / non-root `USER` in the Dockerfile if needed.
+Redshift Federated Query always requires SSL/TLS to the external Postgres data source — not
+optional, not something turned off on Redshift's side. Confirmed via testing: once the
+networking/DNS path to PgBouncer was working, the query still failed with `ERROR: server
+does not support SSL, but SSL was required` until PgBouncer was configured to terminate TLS.
+The entrypoint generates a fresh self-signed cert/key on every container start (`client_tls_sslmode
+= require` in `pgbouncer.ini`) — this only needs to satisfy "the connection is encrypted", nothing
+authenticates against this cert's identity (auth is still via `userlist.txt`/password), and a
+private key baked into the image or persisted anywhere would be worse for secrets hygiene with
+no real benefit here.
+
+## Non-root user
+
+The Debian `pgbouncer` binary refuses to run as root (`FATAL PgBouncer should not run as
+root` — confirmed via the actual CloudWatch logs on the first build of this image). The
+Dockerfile creates/ensures a dedicated `pgbouncer` system user, owns `/etc/pgbouncer` for
+it, and runs the entrypoint as that user via `USER pgbouncer` — not relying on whatever the
+Debian package's postinst happens to set up by default.

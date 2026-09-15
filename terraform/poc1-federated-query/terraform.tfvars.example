@@ -5,9 +5,10 @@ aws_region = "ap-southeast-1"
 
 # --- Sandbox foundation: outputs from terraform/datalake-poc-foundation ---
 # Apply that module first, then copy its outputs here.
-vpc_id             = "vpc-REPLACE_ME"        # foundation output: vpc_id
-private_subnet_ids = ["subnet-REPLACE_ME_A"] # foundation output: private_subnet_ids
-vpc_cidr           = "10.50.0.0/16"          # foundation output: vpc_cidr
+vpc_id                    = "vpc-REPLACE_ME"        # foundation output: vpc_id
+private_subnet_ids        = ["subnet-REPLACE_ME_A"] # foundation output: private_subnet_ids
+vpc_cidr                  = "10.50.0.0/16"          # foundation output: vpc_cidr
+bastion_security_group_id = "sg-REPLACE_ME"         # foundation output: bastion_security_group_id
 
 # --- Existing source RDS for PostgreSQL instance (postgreslt, ap-southeast-1) ---
 source_db_instance_identifier = "postgreslt"

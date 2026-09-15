@@ -17,13 +17,15 @@ wait on POC2's reboot gate.
 ## What this creates
 
 - A dedicated Amazon RDS for PostgreSQL **read replica** of the source instance
-  (`db.m5.2xlarge`, Single-AZ, 500GB gp3 by default), in its own subnet group/security group
-  inside the sandbox VPC, with a parameter group enforcing `statement_timeout` and
+  (`db.m5.2xlarge` by default), in its own subnet group/security group inside the sandbox
+  VPC, with a parameter group enforcing `statement_timeout` and
   `idle_in_transaction_session_timeout`. **This replicates the whole `postgreslt` instance —
   all ~28 databases on it, not only `var.source_db_name`.** Native RDS read replicas use
   instance-level physical replication with no per-database scoping (unlike POC2's DMS, whose
-  logical replication can select down to a single schema via `table_mappings`) — size
-  `replica_allocated_storage` for the source's full storage usage accordingly.
+  logical replication can select down to a single schema via `table_mappings`). Storage size
+  and encryption are both inherited from the source at creation — AWS rejects an explicit
+  `allocated_storage`/`kms_key_id` for a same-region, same-account read replica — so neither
+  is set in Terraform; resize storage afterward as a deliberate, separate change if needed.
 - Two Secrets Manager secrets (one per read-only login: MV-refresh, ad-hoc), a customer-managed
   KMS key, and the IAM role Redshift's external schema authenticates with.
 - **PgBouncer** on ECS Fargate (2 tasks, transaction pooling) behind an **internal NLB** — the

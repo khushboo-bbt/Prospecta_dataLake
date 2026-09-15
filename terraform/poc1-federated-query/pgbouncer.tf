@@ -1,14 +1,24 @@
 resource "aws_security_group" "pgbouncer" {
-  name        = "${var.name_prefix}-pgbouncer"
-  description = "PgBouncer on ECS Fargate. Ingress from Redshift only, egress to the analytics replica only."
+  # name_prefix, not a fixed name: create_before_destroy needs to create the
+  # replacement SG while the old one (same name otherwise) still exists -
+  # AWS rejects two security groups sharing a name in the same VPC.
+  name_prefix = "${var.name_prefix}-pgbouncer-"
+  description = "PgBouncer on ECS Fargate, behind the internal NLB."
   vpc_id      = var.vpc_id
 
+  # NOT scoped to aws_security_group.redshift.id: NLB health checks (and, with
+  # client-IP preservation, the real proxied traffic too) originate from the
+  # load balancer's own node IPs within the VPC, not from an ENI carrying the
+  # Redshift security group - a security-group-scoped rule here is silently
+  # unreachable by the NLB and the target never becomes healthy. Scoping to
+  # the VPC CIDR is what actually works for an NLB target in this account's
+  # fully-private, single-VPC design.
   ingress {
-    description     = "PgBouncer from Redshift Serverless"
-    from_port       = 6432
-    to_port         = 6432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.redshift.id]
+    description = "PgBouncer from the internal NLB (health checks + Redshift traffic) within the sandbox VPC"
+    from_port   = 6432
+    to_port     = 6432
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
   }
 
   egress {
@@ -17,6 +27,16 @@ resource "aws_security_group" "pgbouncer" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Without this, Terraform destroys the old SG before creating the new one
+  # and before the ECS service is updated to stop referencing it - the still-
+  # running tasks' ENIs are attached to the old SG, so the delete fails with
+  # DependencyViolation (this is exactly what happened on the first attempt,
+  # after a ~15 minute retry loop). create_before_destroy creates the
+  # replacement and lets the ECS service update onto it first.
+  lifecycle {
+    create_before_destroy = true
   }
 
   tags = merge(var.tags, { Name = "${var.name_prefix}-pgbouncer" })
@@ -101,6 +121,12 @@ resource "aws_ecs_service" "pgbouncer" {
   task_definition = aws_ecs_task_definition.pgbouncer.arn
   desired_count   = var.pgbouncer_desired_count
   launch_type     = "FARGATE"
+  # Temporary diagnostic aid - lets `aws ecs execute-command` shell into the
+  # running container to check DNS/connectivity to the replica directly,
+  # rather than continuing to infer container-internal behavior from outside
+  # (CloudWatch logs, NLB health checks). Fine to leave enabled for the rest
+  # of the POC; not something that needs to ship to a production design.
+  enable_execute_command = true
 
   network_configuration {
     subnets          = var.private_subnet_ids
@@ -128,6 +154,16 @@ resource "aws_lb" "pgbouncer" {
   load_balancer_type = "network"
   subnets            = var.private_subnet_ids
 
+  # NLBs default to cross-zone load balancing OFF. This NLB spans all 3
+  # sandbox subnets/AZs, but pgbouncer_desired_count = 2 means at most 2 of
+  # those 3 AZs ever have a running task - a client whose connection happens
+  # to route through the one AZ's NLB node with no local target gets nothing
+  # back and hangs until timeout (confirmed via PgBouncer's own logs showing
+  # zero connection attempts ever arriving, despite NLB health checks on the
+  # 2 populated AZs passing). Cross-zone balancing lets any AZ's node forward
+  # to a target in any other AZ, removing this AZ-affinity dependency.
+  enable_cross_zone_load_balancing = true
+
   tags = merge(var.tags, { Name = "${var.name_prefix}-pgbouncer" })
 }
 
@@ -137,6 +173,18 @@ resource "aws_lb_target_group" "pgbouncer" {
   protocol    = "TCP"
   vpc_id      = var.vpc_id
   target_type = "ip"
+
+  # Client IP preservation (the default for "ip"-type targets in the same
+  # VPC as the NLB) can cause connections to hang rather than fail cleanly
+  # when the client and target can end up on the same subnet/path - the
+  # target's response gets routed back to the client directly instead of via
+  # the NLB, and the client's OS silently drops it since it isn't from the
+  # IP it thinks it's talking to. Confirmed via testing: both the bastion and
+  # Redshift's federated query hung (not refused) trying to reach PgBouncer
+  # through this NLB. Disabling it is the standard fix - we don't do any
+  # per-client-IP filtering inside PgBouncer itself (auth is via
+  # userlist.txt/password), so there's no downside here.
+  preserve_client_ip = false
 
   health_check {
     protocol = "TCP"

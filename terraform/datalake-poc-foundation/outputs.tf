@@ -30,3 +30,8 @@ output "bastion_instance_id" {
   description = "Temporary bastion instance ID — use with `aws ssm start-session` for one-off private-network access (e.g. to the RDS instance). No SSH, no public IP."
   value       = aws_instance.bastion.id
 }
+
+output "bastion_security_group_id" {
+  description = "Bastion's security group ID — feed into a POC module's own security groups (e.g. an analytics read replica) to allow inbound admin access from the bastion specifically, rather than the whole VPC CIDR."
+  value       = aws_security_group.bastion.id
+}

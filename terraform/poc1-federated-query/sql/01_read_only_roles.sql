@@ -8,16 +8,15 @@
 -- Replace <mv_refresh_password> / <adhoc_password> with the same values
 -- passed as TF_VAR_mv_refresh_db_password / TF_VAR_adhoc_db_password.
 
-CREATE ROLE redshift_mv_refresh WITH LOGIN PASSWORD '<mv_refresh_password>';
+CREATE ROLE redshift_mv_refresh WITH LOGIN PASSWORD '<mv_refresh_password>KllOxQ37rJJDRd';
 CREATE ROLE redshift_adhoc WITH LOGIN PASSWORD '<adhoc_password>';
 
--- Narrow this GRANT to the actual in-scope schema(s) once agreed with the
--- client (same caveat as POC2's table_mappings — the schema name here is a
--- placeholder, not a confirmed value).
-GRANT CONNECT ON DATABASE <source_db_name> TO redshift_mv_refresh, redshift_adhoc;
-GRANT USAGE ON SCHEMA <in_scope_schema> TO redshift_mv_refresh, redshift_adhoc;
-GRANT SELECT ON ALL TABLES IN SCHEMA <in_scope_schema> TO redshift_mv_refresh, redshift_adhoc;
-ALTER DEFAULT PRIVILEGES IN SCHEMA <in_scope_schema> GRANT SELECT ON TABLES TO redshift_mv_refresh, redshift_adhoc;
+-- Client-confirmed in-scope database/schema: mdo-core-crud / 167597 (same
+-- scope agreed for poc2-dms-landing).
+GRANT CONNECT ON DATABASE "mdo-core-crud" TO redshift_mv_refresh, redshift_adhoc;
+GRANT USAGE ON SCHEMA "167597" TO redshift_mv_refresh, redshift_adhoc;
+GRANT SELECT ON ALL TABLES IN SCHEMA "167597" TO redshift_mv_refresh, redshift_adhoc;
+ALTER DEFAULT PRIVILEGES IN SCHEMA "167597" GRANT SELECT ON TABLES TO redshift_mv_refresh, redshift_adhoc;
 
 -- Only needed if these two logins ever require different timeouts than the
 -- instance-wide values set via the replica's parameter group
