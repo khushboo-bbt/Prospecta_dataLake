@@ -183,3 +183,9 @@ variable "redshift_max_query_execution_time_seconds" {
   type        = number
   default     = 300
 }
+
+variable "mv_refresh_schedule" {
+  description = "EventBridge schedule expression for refreshing the bi schema's materialized views — these can't use Redshift AUTO REFRESH since they're defined over federated/external tables (see sql/03_materialized_views.sql), so a scheduled REFRESH MATERIALIZED VIEW is the only option."
+  type        = string
+  default     = "rate(15 minutes)"
+}
