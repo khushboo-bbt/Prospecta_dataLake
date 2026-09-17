@@ -1,0 +1,26 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowRedshiftAuthorizeIntegration",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "redshift.amazonaws.com"
+      },
+      "Action": ["redshift:AuthorizeInboundIntegration"],
+      "Condition": {
+        "StringEquals": {
+          "aws:SourceArn": "arn:aws:rds:ap-southeast-1:448049790823:db:postgreslt"
+        }
+      }
+    },
+    {
+      "Sid": "AllowCreateIntegration",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": ["arn:aws:iam::448049790823:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_Administrator_f1caf1970176308e"]
+      },
+      "Action": ["redshift:CreateInboundIntegration"]
+    }
+  ]
+}

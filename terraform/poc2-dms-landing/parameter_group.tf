@@ -3,6 +3,25 @@ locals {
   db_parameter_group_family = "postgres${split(".", var.source_db_engine_version)[0]}"
 }
 
+
+# NOTE: `description` below is intentionally left exactly as originally
+# applied. aws_db_parameter_group's description is force-new (RDS's API has
+# no ModifyDBParameterGroup field for it — only CreateDBParameterGroup
+# accepts one), so editing that string would make Terraform destroy and
+# recreate this group. AWS refuses to delete a parameter group while it's
+# attached to an instance, so that destroy would fail outright against the
+# live, already-attached postgreslt instance — confirmed via a real `plan`
+# showing "# forces replacement" the first time this comment's context was
+# (wrongly) added to the description field instead of here.
+#
+# This group is now also what POC3's zero-ETL integration
+# (terraform/poc3-zeroetl) requires — see the parameter blocks below for
+# rds.replica_identity_full, session_replication_role and
+# max_slot_wal_keep_size. It's the ONLY parameter group ever attached to
+# postgreslt: POC3 deliberately doesn't create its own, so POC2's DMS CDC and
+# POC3's Zero-ETL can synchronise concurrently for the SOW's final comparison
+# (deliverable D11) rather than needing separate, mutually exclusive attach
+# windows.
 resource "aws_db_parameter_group" "logical_replication" {
   name        = "${var.name_prefix}-logical-replication"
   family      = local.db_parameter_group_family
@@ -12,6 +31,38 @@ resource "aws_db_parameter_group" "logical_replication" {
     name         = "rds.logical_replication"
     value        = "1"
     apply_method = "pending-reboot"
+  }
+
+  # Required by POC3's zero-ETL integration (AWS RDS User Guide, "Getting
+  # started with Amazon RDS zero-ETL integrations" — RDS for PostgreSQL
+  # section). Instance-wide, not per-table or per-database: increases WAL
+  # volume for all ~28 databases on postgreslt, including POC2's own CDC
+  # traffic — watch TransactionLogsDiskUsage/ReplicationSlotDiskUsage after
+  # this is applied (monitoring.tf already alarms on both).
+  parameter {
+    name         = "rds.replica_identity_full"
+    value        = "1"
+    apply_method = "pending-reboot"
+  }
+
+  # Also required for zero-ETL. This is Postgres's own default value, so it's
+  # a no-op for POC2's DMS CDC — added explicitly (immediate, no reboot
+  # needed) so it can't be silently overridden by a stricter setting later.
+  parameter {
+    name         = "session_replication_role"
+    value        = "origin"
+    apply_method = "immediate"
+  }
+
+  # AWS's recommended value for zero-ETL sources — prevents the
+  # integration's replication slot from being invalidated if WAL
+  # accumulates while it briefly isn't consuming (e.g. during creation).
+  # -1 (unlimited) is also Postgres's own engine default, so again a no-op
+  # for POC2.
+  parameter {
+    name         = "max_slot_wal_keep_size"
+    value        = "-1"
+    apply_method = "immediate"
   }
 
   parameter {

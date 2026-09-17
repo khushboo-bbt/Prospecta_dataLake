@@ -1,0 +1,20 @@
+# Copy to terraform.tfvars and fill in with real sandbox values. POC3 needs
+# no DB password (the poller authenticates via the Redshift-managed admin
+# secret, not a Postgres login), so there's nothing sensitive to keep out of
+# this file beyond the usual "don't commit terraform.tfvars" rule.
+
+aws_region = "ap-southeast-1"
+
+# --- Sandbox foundation: outputs from terraform/datalake-poc-foundation ---
+vpc_id             = "vpc-REPLACE_ME"        # foundation output: vpc_id
+private_subnet_ids = ["subnet-REPLACE_ME_A"] # foundation output: private_subnet_ids
+vpc_cidr           = "10.50.0.0/16"          # foundation output: vpc_cidr
+
+# --- Existing source RDS for PostgreSQL instance (postgreslt, ap-southeast-1) ---
+source_db_instance_identifier = "postgreslt"
+source_db_name                = "mdo-core-crud" # postgreslt hosts ~28 separate databases; this is the client-confirmed in-scope one
+
+# --- Zero-ETL data filter (narrow to the agreed POC subset before the real run) ---
+data_filter = "include: mdo-core-crud.167597.*" # same schema 167597 agreed for poc2-dms-landing
+
+alarm_notification_email = "ojash.mishra@prospecta.com"

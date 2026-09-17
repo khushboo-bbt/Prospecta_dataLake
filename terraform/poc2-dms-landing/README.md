@@ -56,10 +56,12 @@ Confirm after reboot:
 ```
 aws rds describe-db-parameters \
   --db-parameter-group-name <parameter_group_name output> \
-  --query "Parameters[?ParameterName=='rds.logical_replication']"
+  --query "Parameters[?ParameterName=='rds.logical_replication' || ParameterName=='rds.replica_identity_full']"
 ```
 
-`ParameterValue` must show `1` and `ApplyStatus` must show `in-sync`.
+Both must show `ParameterValue: 1` and `ApplyStatus: in-sync`.
+
+**This is now the only parameter group ever attached to `postgreslt`.** It also carries the settings `terraform/poc3-zeroetl`'s Zero-ETL integration requires (`rds.replica_identity_full`, `session_replication_role`, `max_slot_wal_keep_size`) — deliberately, so POC2's DMS CDC and POC3's Zero-ETL can synchronise concurrently for the SOW's final side-by-side comparison (deliverable D11), rather than needing separate, mutually exclusive attach windows. If this parameter group is ever re-applied after POC3 is built, re-run the reboot/confirm steps above and check `rds.replica_identity_full` too — it's a `pending-reboot` parameter like `rds.logical_replication`, so a plain `terraform apply` here does not activate it on its own.
 
 ## Test the connection and start replication
 
