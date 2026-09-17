@@ -34,27 +34,55 @@ resource "aws_sns_topic_policy" "zero_etl_health" {
 # ---------------------------------------------------------------------------
 # Path 1: EventBridge rule on the integration's own state-change events.
 #
-# AWS documents the full catalogue of zero-ETL integration event IDs
-# (REDSHIFT-INTEGRATION-EVENT-0000 through 1006 — Redshift Management Guide,
-# "Zero-ETL integration event notifications with Amazon EventBridge"), but
-# the exact EventBridge `source`/`detail-type` strings Redshift Serverless
-# actually emits for these were not pinned down from documentation alone.
-# This is the best-documented pattern (Redshift's native event-notification
-# system is exposed to EventBridge under source "aws.redshift"); TREAT THIS
-# RULE AS UNVERIFIED until a real event is captured from an active
-# integration (e.g. via a temporary catch-all rule with no detail-type filter
-# and a CloudWatch Logs target, or the EventBridge console's "sample event"
-# / actual delivered event) and this pattern is corrected to match. See
-# README "Known follow-ups".
+# Pattern CONFIRMED via a real captured event (2026-09-17), by adding an
+# unsupported-data-type column (text > 64KB) to a disposable test table and
+# catching the resulting notification with a temporary catch-all rule
+# (source ["aws.redshift","aws.rds"], no detail-type filter) targeting a
+# CloudWatch Logs group:
+#
+#   {
+#     "detail-type": "Redshift Integration Monitoring",
+#     "source": "aws.redshift",
+#     "resources": ["<integration ARN>"],
+#     "detail": {
+#       "severity": "Info",
+#       "sourceArn": "<source RDS ARN>",
+#       "destinationArn": "<Redshift namespace ARN>",
+#       "eventDescription": "Your zero-ETL Integration ... is synchronizing
+#         transactional data to the Amazon Redshift data warehouse.",
+#       "integrationStatus": "SYNCING",
+#       "statusCode": "SYNCING"
+#     }
+#   }
+#
+# This matches REDSHIFT-INTEGRATION-EVENT-0003 from the documented catalogue
+# (Redshift Management Guide, "Zero-ETL integration event notifications with
+# Amazon EventBridge") exactly, confirming the source/detail-type documented
+# there were never the actual values — "source" was right, "detail-type" was
+# guessed wrong ("Redshift Integration Event" vs the real
+# "Redshift Integration Monitoring").
+#
+# Filtered to Warning/Error severity only — Info-level events (like the one
+# captured above) fire routinely during normal sync activity and would make
+# this path noise rather than a failure signal. The Warning/Error casing is
+# not a guess either: the same diagnostic test, once the oversized value
+# actually caused the table to fail, produced a second real event with
+# severity "Warning" (matching REDSHIFT-INTEGRATION-EVENT-0005/"unsupported
+# data type" from the catalogue, statusCode "DATA_COLUMN_LENGTH_EXCEEDED",
+# integrationStatus "NEEDS_ATTENTION"). This rule's filter values are
+# therefore confirmed against a real failure, not inferred.
 # ---------------------------------------------------------------------------
 
 resource "aws_cloudwatch_event_rule" "integration_state" {
   name        = "${var.name_prefix}-integration-state"
-  description = "Zero-ETL integration state-change events (WARNING/ERROR severities) — pattern unverified, see README."
+  description = "Zero-ETL integration state-change events (Warning/Error severity only) — pattern confirmed via captured event, see eventbridge.tf comment."
 
   event_pattern = jsonencode({
     source      = ["aws.redshift"]
-    detail-type = ["Redshift Integration Event"]
+    detail-type = ["Redshift Integration Monitoring"]
+    detail = {
+      severity = ["Warning", "Error"]
+    }
   })
 
   tags = var.tags

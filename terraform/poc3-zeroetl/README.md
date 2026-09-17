@@ -28,8 +28,9 @@ subnets, route tables) already exists. It does not create or modify the source R
   `SVV_INTEGRATION_TABLE_STATE` via the Redshift Data API on a 5-minute schedule and publishes a
   `Custom/ZeroETL` / `UnsyncedTableCount` CloudWatch metric — the SOW's second detection path.
 - Two EventBridge rules (`eventbridge.tf`): one on the integration's own state-change events
-  (**pattern unverified — see "Known follow-ups"**), one on the poller's schedule. Both ultimately
-  notify the same SNS topic (`monitoring.tf`) as the CloudWatch alarms.
+  (pattern confirmed against a real captured Warning-severity event — see the resource's
+  comment), one on the poller's schedule. Both ultimately notify the same SNS topic
+  (`monitoring.tf`) as the CloudWatch alarms.
 
 ## Manual step: extend the shared parameter group and coordinate the reboot
 
@@ -162,22 +163,36 @@ aws cloudwatch get-metric-data \
   --start-time $(date -u -d '-1 hour' +%Y-%m-%dT%H:%M:%S) --end-time $(date -u +%Y-%m-%dT%H:%M:%S)
 ```
 
-confirms the poller path end to end before waiting on the schedule. Then measure replication
-latency under representative source write activity, and exercise schema-change behaviour (column
-add/remove/rename) against the integration per the SOW's validation step.
+confirms the poller path end to end before waiting on the schedule.
+
+The `validation/` folder has reusable queries for these checks (source PK/data-type audits,
+sync-state summary, Failed-table reasons, physical-storage cross-check, consumer-view row count)
+and `measure_latency.ps1`, a self-contained script that inserts a timestamped row on the source
+and polls Redshift until it's visible, reporting the measured latency.
+
+**Results from the validation performed on this integration** (schema `167597`, 198 tables):
+- Replication latency: 3 runs, ~19-21s typical, one outlier of ~352s after ~2 days of no write
+  activity (see below)
+- Schema-change behaviour: `ADD COLUMN`, `RENAME COLUMN`, and `DROP COLUMN` all propagated
+  automatically with no resync disruption and no manual intervention needed
+- An unsupported-length value (>64KB) correctly triggered `Failed` state with a specific,
+  actionable reason, and a real `Warning`-severity EventBridge event (confirming the pattern in
+  `eventbridge.tf`)
+- 196/198 tables Synced on initial validation, later reaching 198/198 after a capacity increase —
+  see `CAPACITY_FINDINGS.md`
 
 ## Known follow-ups
 
-- **The `integration_state` EventBridge rule's event pattern is unverified.** AWS documents the
-  full catalogue of zero-ETL integration event IDs (Redshift Management Guide, "Zero-ETL
-  integration event notifications with Amazon EventBridge"), but the exact `source`/`detail-type`
-  strings Redshift Serverless emits for them weren't pinned down from documentation alone. Before
-  relying on this path, capture a real event (e.g. a temporary catch-all rule with a CloudWatch
-  Logs target) once the integration is active, and correct `eventbridge.tf` to match.
 - Confirm `postgreslt`'s engine version (16.13) against AWS's current zero-ETL supported-versions
   table before relying on eligibility — this was the SOW's Source Assessment task and hasn't been
-  re-verified here.
+  re-verified here (it clearly qualifies in practice, since the integration is live and
+  replicating, but the formal check hasn't been re-run against AWS's published list).
 - BI role grants in `sql/02_consumer_views.sql` are commented out pending the actual Power BI
-  service role/user.
+  service role/user — see `poc_powerbi_questions.md` (repo root) for the client questions blocking
+  this: gateway hosting, Redshift auth method, licensing, and report content.
 - The shared Power BI on-premises data gateway node (EC2, itemised in SOW Table 12.2) — not part
   of this module, same as POC1/POC2.
+- Major-version-upgrade runbook (SOW requirement: an active integration blocks a source major-
+  version upgrade; recreating the integration triggers a full backfill, not an incremental
+  resume) — not yet written.
+- Architecture-as-built diagram (deliverable D7) — not yet created.

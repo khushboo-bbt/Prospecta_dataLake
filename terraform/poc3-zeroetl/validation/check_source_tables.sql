@@ -1,3 +1,7 @@
+-- Run against the SOURCE (postgreslt/mdo-core-crud), not Redshift. Primary
+-- key coverage audit for schema 167597 — cross-reference against
+-- validation/check_sync_state.sql's results to explain any table missing
+-- from the Redshift side entirely (as opposed to present but Failed).
 SELECT
     t.table_name,
     EXISTS (
