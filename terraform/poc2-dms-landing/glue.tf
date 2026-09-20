@@ -88,8 +88,10 @@ resource "aws_iam_role_policy" "glue_crawler" {
   policy = data.aws_iam_policy_document.glue_crawler.json
 }
 
-# On-demand only for now (no schedule) — EventBridge-driven scheduling is a
-# separate, later step per the agreed build order.
+# Scheduled (eventbridge.tf) rather than on-demand — needs to run ahead of
+# the Iceberg merge job so a newly-added source column reaches this catalog,
+# and gets picked up by the merge job's schema-reconciliation step, before
+# CDC files carrying that column actually arrive.
 resource "aws_glue_crawler" "poc2" {
   name          = "${var.name_prefix}-crawler"
   role          = aws_iam_role.glue_crawler.arn

@@ -13,14 +13,15 @@ resource "aws_dms_endpoint" "source" {
   secrets_manager_arn             = aws_secretsmanager_secret.source_db.arn
 
   postgres_settings {
-    # Default DDL-capture behavior needs the pglogical extension (preloaded
-    # via shared_preload_libraries, which we haven't set up, and would need
-    # yet another reboot). This POC only needs data changes, not schema-
-    # change tracking, so disable DDL capture entirely and avoid the
-    # pglogical dependency — confirmed root cause of "pglogical is not in
-    # shared_preload_libraries" / "relation pglogical.replication_set does
-    # not exist" fatal errors in the DMS Serverless logs.
-    capture_ddls = false
+    # Needs the pglogical extension preloaded via shared_preload_libraries
+    # (parameter_group.tf) — previously off because that wasn't set up and
+    # DDL tracking wasn't required yet. Now on so that ADD/DROP/RENAME COLUMN
+    # on the source during CDC is captured instead of silently missed until
+    # a full table reload. Requires the source parameter group change to
+    # have actually taken effect (pending-reboot) before this task starts,
+    # or DMS fails with the same "pglogical is not in
+    # shared_preload_libraries" fatal error this was previously dodging.
+    capture_ddls = true
   }
 
   tags = var.tags

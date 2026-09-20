@@ -89,6 +89,15 @@ data "aws_iam_policy_document" "scheduler_glue_trigger" {
       aws_glue_job.iceberg_maintenance.arn,
     ]
   }
+
+  # Crawler ARNs use a different resource format than job ARNs
+  # (arn:aws:glue:region:account:crawler/name) — separate statement, same
+  # role, since StartCrawler isn't valid on a job ARN or vice versa.
+  statement {
+    effect    = "Allow"
+    actions   = ["glue:StartCrawler"]
+    resources = [aws_glue_crawler.poc2.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "scheduler_glue_trigger" {
@@ -129,6 +138,24 @@ resource "aws_scheduler_schedule" "iceberg_maintenance" {
 
     input = jsonencode({
       JobName = aws_glue_job.iceberg_maintenance.name
+    })
+  }
+}
+
+resource "aws_scheduler_schedule" "glue_crawler" {
+  name                = "${var.name_prefix}-crawler-schedule"
+  schedule_expression = var.glue_crawler_schedule
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = "arn:aws:scheduler:::aws-sdk:glue:startCrawler"
+    role_arn = aws_iam_role.scheduler_glue_trigger.arn
+
+    input = jsonencode({
+      Name = aws_glue_crawler.poc2.name
     })
   }
 }

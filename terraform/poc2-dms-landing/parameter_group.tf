@@ -33,6 +33,20 @@ resource "aws_db_parameter_group" "logical_replication" {
     apply_method = "pending-reboot"
   }
 
+  # Required for DMS's capture_ddls setting on the source endpoint (dms.tf) —
+  # DMS's DDL-capture support for PostgreSQL sources needs the pglogical
+  # extension preloaded. Current live value (confirmed via
+  # describe-db-parameters, Source: system) is "pg_stat_statements,pg_tle" —
+  # appending, not replacing, since this is the only parameter group attached
+  # to postgreslt and those two are presumably relied on elsewhere on the
+  # shared instance. Static parameter: needs a reboot to take effect, same as
+  # rds.logical_replication above.
+  parameter {
+    name         = "shared_preload_libraries"
+    value        = "pg_stat_statements,pg_tle,pglogical"
+    apply_method = "pending-reboot"
+  }
+
   # Required by POC3's zero-ETL integration (AWS RDS User Guide, "Getting
   # started with Amazon RDS zero-ETL integrations" — RDS for PostgreSQL
   # section). Instance-wide, not per-table or per-database: increases WAL

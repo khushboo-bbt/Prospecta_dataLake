@@ -110,10 +110,18 @@ resource "aws_iam_user_policy" "curated_reader" {
 
 resource "aws_lakeformation_permissions" "curated_reader" {
   principal = aws_iam_user.curated_reader.arn
-  # SELECT is not a valid database-level permission in Lake Formation — only
-  # applies to tables (see curated_reader_tables below, which already has
-  # it). DESCRIBE is what lets this principal see the database/list tables.
-  permissions = ["DESCRIBE"]
+  # Matches what's actually granted live today (confirmed via `terraform
+  # plan`: -/+ replace, revoking ["ALL","DESCRIBE"] down to ["DESCRIBE"]).
+  # A tighter, DESCRIBE-only grant is the eventual intent (SELECT isn't a
+  # valid database-level permission — only applies to tables, see
+  # curated_reader_tables below, which already has it — so DESCRIBE alone
+  # is theoretically sufficient), but Lake Formation permission changes
+  # replace rather than update in place, meaning a revoke-then-regrant with
+  # a brief window of zero database-level access for this principal.
+  # Deliberately left matching live state for now rather than bundled into
+  # unrelated work — tighten this in its own change, at a moment nothing is
+  # actively querying through curated_reader.
+  permissions = ["ALL", "DESCRIBE"]
 
   database {
     name = aws_glue_catalog_database.curated.name

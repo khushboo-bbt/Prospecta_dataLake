@@ -49,6 +49,29 @@ TABLE_CONFIGS = json.loads(args["table_configs"])  # {"table_name": {"pk": ["col
 
 spark.sql(f"CREATE DATABASE IF NOT EXISTS glue_catalog.{TARGET_DATABASE}")
 
+
+def reconcile_schema(table_name, iceberg_table, source_df):
+    """Add any source_df column not yet on iceberg_table, via ALTER TABLE.
+
+    Additive only: never drops or renames a target column, since capture_ddls
+    doesn't distinguish "column dropped on the source" from "column absent
+    from this particular batch", and dropping would destroy already-merged
+    history on a false positive. A genuine source-side DROP COLUMN just
+    leaves that Iceberg column NULL going forward, which is the safe default.
+    """
+    target_columns = set(spark.table(iceberg_table).columns)
+    new_fields = [
+        f for f in source_df.schema.fields
+        if f.name not in target_columns and f.name != "op"
+    ]
+    if not new_fields:
+        return
+
+    add_clause = ", ".join(f"{f.name} {f.dataType.simpleString()}" for f in new_fields)
+    spark.sql(f"ALTER TABLE {iceberg_table} ADD COLUMNS ({add_clause})")
+    print(f"{table_name}: added new column(s) to {iceberg_table}: {[f.name for f in new_fields]}")
+
+
 for table_name, config in TABLE_CONFIGS.items():
     pk_columns = config["pk"]
     append_only = config.get("append_only", False)
@@ -84,6 +107,7 @@ for table_name, config in TABLE_CONFIGS.items():
         # "rev" must be preserved, not collapsed.
         writer = source_df.writeTo(iceberg_table)
         if table_exists:
+            reconcile_schema(table_name, iceberg_table, source_df)
             writer.append()
         else:
             writer.using("iceberg").create()
@@ -96,6 +120,14 @@ for table_name, config in TABLE_CONFIGS.items():
         source_df.writeTo(iceberg_table).using("iceberg").create()
         print(f"Created {iceberg_table} with {source_df.count()} initial rows")
         continue
+
+    # A source column DMS captured (capture_ddls=true on the source
+    # endpoint) that isn't in the Iceberg table yet — e.g. an ADD COLUMN
+    # on postgreslt since this table was created — would otherwise fail
+    # the MERGE below with "column not found". Reconcile additively;
+    # never drop/rename a target column here even if a column vanishes
+    # from source_df, since that would destroy history already merged in.
+    reconcile_schema(table_name, iceberg_table, source_df)
 
     source_df.createOrReplaceTempView(f"src_{table_name}")
 

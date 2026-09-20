@@ -3,6 +3,14 @@ locals {
   # publishes this dimension as "<account_id>:<replication_config_identifier>",
   # not the config's ARN or a separate generated ID.
   dms_replication_config_dimension = "${data.aws_caller_identity.current.account_id}:${aws_dms_replication_config.poc2.replication_config_identifier}"
+
+  # ReplicationSlotDiskUsage/OldestReplicationSlotLag/TransactionLogsDiskUsage
+  # are all published in raw Bytes (confirmed via get-metric-statistics'
+  # returned Unit) despite the *_threshold_mb variables being authored in MB —
+  # convert here rather than comparing MB thresholds against a Bytes metric,
+  # which was causing all three alarms to be permanently in ALARM regardless
+  # of actual health.
+  bytes_per_mb = 1048576
 }
 
 resource "aws_sns_topic" "replica_health" {
@@ -74,7 +82,7 @@ resource "aws_cloudwatch_metric_alarm" "replication_slot_disk_usage" {
   period              = 300
   evaluation_periods  = 2
   comparison_operator = "GreaterThanThreshold"
-  threshold           = var.replication_slot_disk_usage_threshold_mb
+  threshold           = var.replication_slot_disk_usage_threshold_mb * local.bytes_per_mb
   treat_missing_data  = "notBreaching"
   alarm_actions       = [aws_sns_topic.replica_health.arn]
   ok_actions          = [aws_sns_topic.replica_health.arn]
@@ -91,7 +99,7 @@ resource "aws_cloudwatch_metric_alarm" "oldest_replication_slot_lag" {
   period              = 300
   evaluation_periods  = 2
   comparison_operator = "GreaterThanThreshold"
-  threshold           = var.oldest_replication_slot_lag_threshold_mb
+  threshold           = var.oldest_replication_slot_lag_threshold_mb * local.bytes_per_mb
   treat_missing_data  = "notBreaching"
   alarm_actions       = [aws_sns_topic.replica_health.arn]
   ok_actions          = [aws_sns_topic.replica_health.arn]
@@ -108,7 +116,7 @@ resource "aws_cloudwatch_metric_alarm" "transaction_logs_disk_usage" {
   period              = 300
   evaluation_periods  = 2
   comparison_operator = "GreaterThanThreshold"
-  threshold           = var.transaction_logs_disk_usage_threshold_mb
+  threshold           = var.transaction_logs_disk_usage_threshold_mb * local.bytes_per_mb
   treat_missing_data  = "notBreaching"
   alarm_actions       = [aws_sns_topic.replica_health.arn]
   ok_actions          = [aws_sns_topic.replica_health.arn]

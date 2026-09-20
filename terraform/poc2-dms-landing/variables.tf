@@ -265,6 +265,12 @@ variable "iceberg_maintenance_schedule" {
   default     = "cron(0 18 * * ? *)" # 18:00 UTC daily = 23:30 IST
 }
 
+variable "glue_crawler_schedule" {
+  description = "EventBridge schedule expression for the raw-landing Glue crawler — must run ahead of the Iceberg merge schedule so a newly-added source column reaches the catalog (and gets ALTERed into the Iceberg tables by the merge job) before CDC files carrying it show up."
+  type        = string
+  default     = "rate(10 minutes)"
+}
+
 variable "iceberg_snapshot_retention_hours" {
   description = "Iceberg snapshots older than this are eligible for expiry during maintenance (retain_last=1 always keeps at least the most recent one regardless)."
   type        = number
