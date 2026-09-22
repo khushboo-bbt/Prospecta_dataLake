@@ -1,10 +1,22 @@
 # Demo Guide — POC1 / POC2 / POC3
 
+aws configure --profile  prospecta-poc2-admin  
+aws configure set aws_session_token "<token>" --profile prospecta-poc2-readonly
+                                      
+aws configure list-profiles; aws sts get-caller-identity --profile prospecta-poc2-admin --output json                                                                                                                  
+Stop: aws dms stop-replication --replication-config-arn "arn:aws:dms:ap-southeast-1:448049790823:replication-config:datalake-poc2-full-load-cdc" --region ap-southeast-1 --profile prospecta-poc2-admin
+
+Resume: aws dms start-replication --replication-config-arn "arn:aws:dms:ap-southeast-1:448049790823:replication-config:datalake-poc2-full-load-cdc" --start-replication-type resume-processing --region ap-southeast-1 --profile prospecta-poc2-admin                                             
 Command-by-command runbook for demoing what's built so far on all three POCs.
-Power BI is **not** included in any POC yet — it's blocked on client answers to
-[poc_powerbi_questions.md](poc_powerbi_questions.md) (license, gateway hosting,
-auth method, report content). Everything below proves the data layer: source →
-target movement, schema, and querying, for each POC independently.
+Power BI for POC1 is **in progress**: license, gateway hosting, Redshift auth
+method, and first-report content are all answered (see
+[poc_powerbi_questions.md](poc_powerbi_questions.md)) and the shared gateway +
+Redshift reader user are built in `terraform/powerbi-gateway` and
+`terraform/poc1-federated-query/sql/04_powerbi_reader_role.sql` — not yet
+applied/connected end-to-end. POC2 and POC3's Power BI wiring is still
+blocked on their own open questions in that file. Everything below proves the
+data layer: source → target movement, schema, and querying, for each POC
+independently.
 
 Real resource identifiers below are from the live sandbox account
 (`448049790823`, `ap-southeast-1`) as of this writing — re-run the `terraform
@@ -126,7 +138,9 @@ aws redshift-data execute-statement `
 ```
 
 **Not built yet (flag if asked):** scheduled auto-refresh (EventBridge Scheduler),
-covering indexes on the replica, concurrency load test, Power BI connection.
+covering indexes on the replica, concurrency load test. Power BI connection is
+in progress — see `terraform/powerbi-gateway` and `sql/04_powerbi_reader_role.sql`;
+not yet applied/connected end-to-end.
 
 ---
 
@@ -387,8 +401,10 @@ runbook, as-built architecture diagram, Power BI connection.
 - All three POCs read from the **same 9-table, schema-`167597` subset** of
   `postgreslt` / `mdo-core-crud`, specifically so a side-by-side comparison
   (cost, latency, operational complexity) is apples-to-apples.
-- The one piece common to all three and **not yet done**: Power BI. Point to
-  [poc_powerbi_questions.md](poc_powerbi_questions.md) — license tier, gateway
-  hosting decision (client VM vs. an EC2 gateway we'd provision), Redshift/Athena
-  auth method, and report content are all still open client questions blocking
-  this, not implementation work outstanding on our side.
+- Power BI: **in progress for POC1**, still open for POC2/POC3. POC1's license,
+  gateway hosting, Redshift auth method, and first-report content are all
+  answered (see [poc_powerbi_questions.md](poc_powerbi_questions.md)) and built
+  in `terraform/powerbi-gateway` (the shared EC2 gateway) and
+  `terraform/poc1-federated-query/sql/04_powerbi_reader_role.sql` (the DB
+  login) — not yet applied/connected end-to-end. POC2's Athena auth and
+  POC3's Redshift wiring remain open client questions.

@@ -4,16 +4,24 @@ Hi team,
 
 To wire up Power BI reporting across the three POCs, we need the following from you:
 
-1. **Power BI license** — Pro or Premium/PPU? (affects refresh frequency limits)
-2. **Gateway hosting** — where should the on-premises data gateway run? Options:
-   a. A VM on your network, with VPN/Direct Connect (or temporary allow-listed access) into the AWS sandbox VPC, or
-   b. A Windows EC2 instance inside the sandbox VPC itself (we'd provision this — please confirm you're OK with the added scope)
-3. **Gateway admin access** — who can install software (gateway service + ODBC drivers) on that machine?
-4. **Redshift auth** — IAM-based or DB username/password for the Power BI connection?
-5. **Athena auth** — an IAM user/role we can use for Athena + S3 (landing bucket) access, and an S3 staging bucket for query results
-6. **Report content** — which tables/KPIs should the representative report per POC actually show?
-7. **Refresh cadence** — how often should each report refresh?
-8. **Access/security** — any row-level security requirement, or is a flat read-only report fine for POC purposes?
-9. **Branding** — any existing Power BI theme/template to use?
+1. ~~**Power BI license** — Pro or Premium/PPU?~~ **Answered:** licensed, POC1 proceeding.
+2. ~~**Gateway hosting**~~ **Answered (POC1):** option (b) — a Windows EC2 instance inside the
+   sandbox VPC, provisioned by us. Built in `terraform/powerbi-gateway`.
+3. **Gateway admin access** — who can install software (gateway service + ODBC drivers) on that
+   machine? Currently us, via SSM Session Manager port forwarding (no client-side access set up
+   yet) — confirm if the client side also needs direct access to this instance.
+4. ~~**Redshift auth**~~ **Answered (POC1):** DB username/password. See
+   `terraform/poc1-federated-query/sql/04_powerbi_reader_role.sql`.
+5. **Athena auth** (POC2) — an IAM user/role we can use for Athena + S3 (landing bucket) access,
+   and an S3 staging bucket for query results. Still open.
+6. ~~**Report content**~~ **Answered (POC1):** the 9 existing `bi.*` materialized views, flat —
+   no new modeling for the first pass.
+7. **Refresh cadence** — how often should each report refresh? Still open — note the MVs
+   themselves already refresh every 15 minutes; the Power BI report's own scheduled refresh is a
+   separate, coarser setting (Pro caps at 8/day) that still needs a client-confirmed value.
+8. **Access/security** — any row-level security requirement, or is a flat read-only report fine
+   for POC purposes? Still open — POC1 is currently built assuming flat/read-only
+   (`bi_reader` role, no RLS).
+9. **Branding** — any existing Power BI theme/template to use? Still open.
 
 Thanks,

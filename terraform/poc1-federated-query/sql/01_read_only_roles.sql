@@ -8,7 +8,7 @@
 -- Replace <mv_refresh_password> / <adhoc_password> with the same values
 -- passed as TF_VAR_mv_refresh_db_password / TF_VAR_adhoc_db_password.
 
-CREATE ROLE redshift_mv_refresh WITH LOGIN PASSWORD '<mv_refresh_password>KllOxQ37rJJDRd';
+CREATE ROLE redshift_mv_refresh WITH LOGIN PASSWORD '<mv_refresh_password>';
 CREATE ROLE redshift_adhoc WITH LOGIN PASSWORD '<adhoc_password>';
 
 -- Client-confirmed in-scope database/schema: mdo-core-crud / 167597 (same

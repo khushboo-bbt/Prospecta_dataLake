@@ -87,7 +87,8 @@ terraform apply   # under an elevated profile
    infrastructure.
 7. **Power BI report** — connects to the Redshift workgroup via the native connector, through
    the shared on-premises data gateway node (SOW Table 12.2: one gateway shared across all
-   three POCs) — that gateway belongs in a separate shared-services module, not duplicated here.
+   three POCs) — see `terraform/powerbi-gateway`, plus `sql/04_powerbi_reader_role.sql` for the
+   DB username/password login that connection authenticates as.
 
 ## Validate
 
@@ -112,5 +113,6 @@ federated table and a local Redshift table executes correctly, per the SOW's val
 - If `terraform plan` shows a persistent diff on `aws_redshiftserverless_workgroup.poc1`'s
   `config_parameter` after the first apply, see the note in `redshift.tf` — a known AWS
   provider quirk with partial `config_parameter` lists.
-- The shared Power BI on-premises data gateway node (EC2, itemised in SOW Table 12.2) — not
-  part of this module.
+- The shared Power BI on-premises data gateway node (EC2, itemised in SOW Table 12.2) now lives
+  in `terraform/powerbi-gateway` — apply that module and its manual steps (README there) to
+  finish wiring up POC1's report.

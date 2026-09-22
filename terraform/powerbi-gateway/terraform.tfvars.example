@@ -1,0 +1,20 @@
+# Copy to terraform.tfvars (or a *.auto.tfvars) and fill in with real sandbox
+# values. Do not commit the filled-in file.
+
+aws_region = "ap-southeast-1"
+
+# --- Sandbox foundation: outputs from terraform/datalake-poc-foundation ---
+vpc_id   = "vpc-REPLACE_ME"   # foundation output: vpc_id
+vpc_cidr = "10.50.0.0/16"     # foundation output: vpc_cidr
+
+# --- Gateway EC2 ---
+# gateway_key_pair_public_key must be supplied via
+# TF_VAR_gateway_key_pair_public_key — never put it in this file. Generate a
+# dedicated key pair for this instance only:
+#   ssh-keygen -t rsa -b 4096 -f powerbi-gateway-key -N ""
+#   export TF_VAR_gateway_key_pair_public_key="$(cat powerbi-gateway-key.pub)"
+# Keep powerbi-gateway-key (the private half) safe and out of git - it's the
+# only way to decrypt the instance's initial Windows Administrator password.
+
+# --- POC1 wiring: output from terraform/poc1-federated-query ---
+poc1_redshift_security_group_id = "sg-REPLACE_ME" # poc1-federated-query output: redshift_security_group_id

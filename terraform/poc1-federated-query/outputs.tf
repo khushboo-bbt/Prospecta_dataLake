@@ -35,6 +35,11 @@ output "redshift_admin_secret_arn" {
   value       = aws_redshiftserverless_namespace.poc1.admin_password_secret_arn
 }
 
+output "redshift_security_group_id" {
+  description = "Feed into terraform/powerbi-gateway's poc1_redshift_security_group_id variable to wire the shared Power BI gateway into this workgroup."
+  value       = aws_security_group.redshift.id
+}
+
 output "redshift_federated_query_role_arn" {
   description = "IAM role ARN to pass as IAM_ROLE in CREATE EXTERNAL SCHEMA."
   value       = aws_iam_role.redshift_federated_query.arn
