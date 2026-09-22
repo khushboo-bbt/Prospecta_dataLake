@@ -10,3 +10,7 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+
+# EC2 key pairs generated for the powerbi-gateway module - private key
+# material, never commit (public .pub half is fine, harmless).
+terraform/powerbi-gateway/powerbi-gateway-key

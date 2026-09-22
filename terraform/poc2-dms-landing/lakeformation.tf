@@ -25,9 +25,17 @@ resource "aws_iam_user" "curated_reader" {
   tags = var.tags
 }
 
-resource "aws_iam_access_key" "curated_reader" {
-  user = aws_iam_user.curated_reader.name
-}
+# This user's access key is NOT managed here (deliberately, as of a mid-POC
+# rotation on 2026-09-22 done directly via `aws iam create-access-key` /
+# `delete-access-key`) — an `aws_iam_access_key` resource's secret can only
+# ever be read once, at creation, so Terraform has no way to track "the
+# current live key" across an out-of-band rotation without silently
+# generating a brand new one (and invalidating whatever's actually
+# configured in the Power BI gateway's Athena DSN right now) on the next
+# apply. Rotate with the AWS CLI directly:
+#   aws iam create-access-key --user-name datalake-poc2-curated-reader
+#   # update the DSN / Power BI connection with the new pair, confirm it works
+#   aws iam delete-access-key --user-name datalake-poc2-curated-reader --access-key-id <old-id>
 
 data "aws_iam_policy_document" "curated_reader" {
   statement {
@@ -38,14 +46,39 @@ data "aws_iam_policy_document" "curated_reader" {
       "athena:GetQueryResults",
       "athena:StopQueryExecution",
       "athena:GetWorkGroup",
+      # Distinct from GetQueryResults - this is the action the ODBC/JDBC
+      # drivers' result-streaming path uses specifically (over port 444, see
+      # the gateway security group), not the paginated API call the AWS CLI
+      # uses. Missing this (and the port) is exactly why the raw CLI query
+      # succeeded earlier while the same query through the ODBC driver hung
+      # with an S3ClientError timeout.
+      "athena:GetQueryResultsStream",
     ]
     resources = [aws_athena_workgroup.poc2.arn]
+  }
+
+  # ListDataCatalogs is account/region-scoped - no catalog-level ARN exists
+  # to restrict it further (AWS's own managed Athena policies grant it
+  # against Resource "*" too). Needed for Power BI's ODBC navigator to
+  # enumerate catalogs before drilling into a specific database/table -
+  # confirmed needed via a real connection attempt: "AccessDeniedException
+  # ... athena:ListDataCatalogs".
+  statement {
+    effect    = "Allow"
+    actions   = ["athena:ListDataCatalogs"]
+    resources = ["*"]
   }
 
   statement {
     effect = "Allow"
     actions = [
       "glue:GetDatabase",
+      # GetDatabases (plural) is what actually populates the navigator's
+      # database list under AwsDataCatalog - GetDatabase (singular) alone
+      # only fetches one already-known database by name. Same class of gap
+      # as athena:ListDataCatalogs above: confirmed via a real connection
+      # attempt showing an empty catalog rather than datalake_poc2_curated.
+      "glue:GetDatabases",
       "glue:GetTable",
       "glue:GetTables",
       "glue:GetPartition",

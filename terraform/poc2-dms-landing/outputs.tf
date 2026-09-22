@@ -75,13 +75,7 @@ output "replica_health_sns_topic_arn" {
   value = aws_sns_topic.replica_health.arn
 }
 
-output "curated_reader_access_key_id" {
-  description = "Access key ID for the restricted curated-data-reader IAM user (for Power BI's Athena connection)."
-  value       = aws_iam_access_key.curated_reader.id
-}
-
-output "curated_reader_secret_access_key" {
-  description = "Secret access key — retrieve with: terraform output -raw curated_reader_secret_access_key"
-  value       = aws_iam_access_key.curated_reader.secret
-  sensitive   = true
+output "curated_reader_user_name" {
+  description = "IAM user for Power BI's Athena connection. Its access key is managed manually (aws iam create-access-key/delete-access-key), not by Terraform - see the comment in lakeformation.tf."
+  value       = aws_iam_user.curated_reader.name
 }

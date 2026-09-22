@@ -25,6 +25,21 @@ resource "aws_security_group" "gateway" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Athena streams query results to JDBC/ODBC drivers over 444, separate
+  # from the regular Athena/Glue/S3 API traffic on 443 - confirmed via AWS's
+  # own troubleshooting doc after the Athena ODBC connection consistently
+  # hung with S3ClientError/"Request Timeout Has Expired" despite 443 to
+  # every relevant endpoint (Athena, Glue, S3, STS) already testing fine.
+  # Leaving this closed doesn't block the connection outright, just this one
+  # specific call - which is exactly the confusing failure mode this was.
+  egress {
+    description = "Athena JDBC/ODBC result streaming (distinct from the 443 API traffic above)"
+    from_port   = 444
+    to_port     = 444
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   tags = merge(var.tags, { Name = "${var.name_prefix}-gateway" })
 }
 
