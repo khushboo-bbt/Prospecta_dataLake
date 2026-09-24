@@ -29,10 +29,8 @@ WITH NO SCHEMA BINDING;
 
 -- BI users are granted here, on the view only — never given direct access
 -- to poc3_zeroetl_target (mirrors poc1's "grant to materialized views only,
--- never the external schema" control). Replace <bi_role> with the actual
--- Power BI service role/user once provisioned.
--- GRANT USAGE ON SCHEMA bi TO <bi_role>;
--- GRANT SELECT ON bi.change_request_header_v TO <bi_role>;
+-- never the external schema" control). See sql/03_powerbi_reader_role.sql
+-- for the actual role/user creation and grant.
 
 -- Validate the cross-database read is actually live before building the
 -- Power BI report on top of it:

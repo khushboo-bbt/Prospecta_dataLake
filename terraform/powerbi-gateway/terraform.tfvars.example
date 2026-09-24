@@ -18,3 +18,6 @@ vpc_cidr = "10.50.0.0/16"     # foundation output: vpc_cidr
 
 # --- POC1 wiring: output from terraform/poc1-federated-query ---
 poc1_redshift_security_group_id = "sg-REPLACE_ME" # poc1-federated-query output: redshift_security_group_id
+
+# --- POC3 wiring: output from terraform/poc3-zeroetl ---
+poc3_redshift_security_group_id = "sg-REPLACE_ME" # poc3-zeroetl output: redshift_security_group_id

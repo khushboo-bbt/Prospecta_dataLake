@@ -6,9 +6,9 @@ DB username/password, and the first report is a flat read-only one over POC1's e
 materialized views (`bi.*` in `poc1-federated-query/sql/03_materialized_views.sql`).
 
 One gateway, shared across POCs as each is wired up — not duplicated per POC (see the note in
-`poc1-federated-query/README.md`). POC1 is wired up first; POC2 (Athena) and POC3 (a second
-Redshift Serverless workgroup) can point at this same gateway later by populating this module's
-other `*_security_group_id` variables once their own connectivity questions are answered.
+`poc1-federated-query/README.md`). POC1 (Redshift) and POC2 (Athena) are both wired up and
+working end to end. POC3 (a second, separate Redshift Serverless workgroup/namespace) wires up
+the same way, via `poc3_redshift_security_group_id`.
 
 ## What this creates
 
@@ -21,8 +21,11 @@ other `*_security_group_id` variables once their own connectivity questions are 
   port forwarding, the same pattern as the foundation module's bastion.
 - A dedicated **EC2 key pair** (public half only — you provide it) used solely to decrypt the
   instance's initial Windows Administrator password.
-- A security group with outbound-only rules (443 to the Power BI cloud service / Windows Update),
-  plus an additive ingress/egress pair wired into POC1's Redshift security group.
+- A security group with outbound-only rules: 443 (Power BI cloud service / Windows Update), 444
+  (Athena JDBC/ODBC result streaming — separate from its regular 443 API traffic, easy to miss),
+  and an additive rule per POC Redshift workgroup it's wired up to (ingress+egress on POC1's side,
+  egress-only on POC3's side, since POC3's own security group already allows inbound 5439 from
+  the whole sandbox VPC).
 
 ## Configure
 
@@ -86,12 +89,31 @@ with whoever owns the sandbox budget before applying.
    itself. Revisit once the actual required cadence is confirmed (`poc_powerbi_questions.md`,
    question 7).
 
+## Manual steps for POC3
+
+Same shape as POC1's steps 6-8 above, with different values:
+
+6. **Create the Redshift DB user** — `poc3-zeroetl/sql/03_powerbi_reader_role.sql`, run against
+   `poc3_consumer` (not `poc3_zeroetl_target` — that's the read-only integration destination) as
+   the namespace admin.
+7. **Add the data source in Power BI Service**: Amazon Redshift, server = `terraform output
+   redshift_workgroup_endpoint` (from poc3-zeroetl, host only), port `5439`, database
+   `poc3_consumer`, auth = Basic, `powerbi_reader` credentials from step 6.
+8. **Build and publish**, scoped to `bi.change_request_header_v` — the one representative view
+   (POC3's destination database is read-only, so there's no equivalent of POC1's 9 materialized
+   views here; see `poc3-zeroetl/sql/02_consumer_views.sql`).
+
 ## Known follow-ups
 
-- POC2 (Athena) and POC3 (Redshift) aren't wired into this gateway yet — their own
-  `*_security_group_id`/auth questions in `../../poc_powerbi_questions.md` are still open.
 - Only one gateway node — no HA. Microsoft supports a gateway cluster (multiple nodes behind one
   logical gateway) if this needs to survive a single-instance failure; not built here since it's
   POC scope.
 - Recovery key storage (step 4 above) is a manual, out-of-band step — worth formalizing into a
   Secrets Manager secret if this gateway becomes more than a POC.
+- Athena's "Amazon Athena" Power Query connector's browsing (catalog/database enumeration) is
+  blocked by what looks like an org-level SCP restricting IAM-user (not assumed-role) principals
+  from `athena:ListDataCatalogs`/`glue:GetDatabases` — real data access still works fine (proven
+  via direct query), just not the Navigator's browse-and-click UI. Workaround: use the generic
+  ODBC connector with an explicit SQL statement instead of browsing. Fixing this properly would
+  need whoever manages the AWS Organization to adjust the SCP, or a dedicated IAM role instead of
+  a user for this connection.

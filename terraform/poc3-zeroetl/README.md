@@ -138,6 +138,9 @@ the AWS provider's schema), so once `aws rds describe-integrations --integration
    cross-database query notation, using the same `change_request_header` table POC1's
    `mv_refresh.tf` and POC2's `iceberg_table_configs` already use, so all three POCs compare
    against identical data end to end.
+3. Run `sql/03_powerbi_reader_role.sql` (also against `poc3_consumer`) — creates the DB
+   username/password login Power BI's Redshift connection authenticates as, scoped to
+   `bi.change_request_header_v` only.
 
 ## Validate
 
@@ -187,11 +190,10 @@ and polls Redshift until it's visible, reporting the measured latency.
   table before relying on eligibility — this was the SOW's Source Assessment task and hasn't been
   re-verified here (it clearly qualifies in practice, since the integration is live and
   replicating, but the formal check hasn't been re-run against AWS's published list).
-- BI role grants in `sql/02_consumer_views.sql` are commented out pending the actual Power BI
-  service role/user — see `poc_powerbi_questions.md` (repo root) for the client questions blocking
-  this: gateway hosting, Redshift auth method, licensing, and report content.
-- The shared Power BI on-premises data gateway node (EC2, itemised in SOW Table 12.2) — not part
-  of this module, same as POC1/POC2.
+- Power BI wiring is now built: `sql/03_powerbi_reader_role.sql` (DB user/password), and the
+  shared gateway module (`terraform/powerbi-gateway`, its `poc3_redshift_security_group_id`
+  variable) — apply that module's manual steps to finish connecting a report. Report content,
+  refresh cadence, and RLS/security are still open per `poc_powerbi_questions.md` (repo root).
 - Major-version-upgrade runbook (SOW requirement: an active integration blocks a source major-
   version upgrade; recreating the integration triggers a full backfill, not an incremental
   resume) — not yet written.

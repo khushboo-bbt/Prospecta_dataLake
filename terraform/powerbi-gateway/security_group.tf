@@ -73,3 +73,22 @@ resource "aws_security_group_rule" "poc1_redshift_from_gateway" {
   source_security_group_id = aws_security_group.gateway.id
   description              = "Power BI gateway"
 }
+
+# ---------------------------------------------------------------------------
+# POC3: egress only, on this side. POC3's own security group already allows
+# inbound 5439 from the whole sandbox VPC CIDR (poc3-zeroetl/networking.tf
+# was built anticipating exactly this gateway), so no matching ingress rule
+# is added there - adding one would be redundant, not additive.
+# ---------------------------------------------------------------------------
+
+resource "aws_security_group_rule" "gateway_to_poc3_redshift" {
+  count = var.poc3_redshift_security_group_id != null ? 1 : 0
+
+  type                     = "egress"
+  security_group_id        = aws_security_group.gateway.id
+  from_port                = 5439
+  to_port                  = 5439
+  protocol                 = "tcp"
+  source_security_group_id = var.poc3_redshift_security_group_id
+  description              = "Redshift Serverless (POC3)"
+}

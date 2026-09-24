@@ -98,3 +98,9 @@ variable "poc1_redshift_security_group_id" {
   type        = string
   default     = null
 }
+
+variable "poc3_redshift_security_group_id" {
+  description = "Security group ID of the POC3 Redshift Serverless workgroup (terraform output from poc3-zeroetl: redshift_security_group_id). Unlike POC1, POC3's own security group already allows inbound 5439 from the whole sandbox VPC CIDR (see poc3-zeroetl/networking.tf) - this variable only drives an EGRESS rule on the gateway's own security group, no matching ingress change on POC3's side."
+  type        = string
+  default     = null
+}

@@ -15,6 +15,11 @@ output "redshift_namespace_arn" {
   value = aws_redshiftserverless_namespace.poc3.arn
 }
 
+output "redshift_security_group_id" {
+  description = "Feed into terraform/powerbi-gateway's poc3_redshift_security_group_id variable. Note: this SG already allows inbound 5439 from the whole sandbox VPC CIDR (see networking.tf) - this output is only needed for the gateway's own EGRESS rule, not a matching ingress change here."
+  value       = aws_security_group.redshift.id
+}
+
 output "redshift_admin_secret_arn" {
   description = "Secrets Manager secret ARN holding the Redshift-managed admin credential (manage_admin_password = true)."
   value       = aws_redshiftserverless_namespace.poc3.admin_password_secret_arn
